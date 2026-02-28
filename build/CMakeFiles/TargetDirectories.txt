@@ -1,0 +1,3 @@
+/home/jinx/Bureau/PTUT_IFSIN/build/CMakeFiles/main.dir
+/home/jinx/Bureau/PTUT_IFSIN/build/CMakeFiles/edit_cache.dir
+/home/jinx/Bureau/PTUT_IFSIN/build/CMakeFiles/rebuild_cache.dir
