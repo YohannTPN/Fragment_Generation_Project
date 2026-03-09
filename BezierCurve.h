@@ -7,7 +7,7 @@ using namespace arma;
 
 class BezierCurve : public Curve { 
 public:
-    BezierCurve(const mat& points); 
+    BezierCurve(const mat& points); // points de contrôle 4x2
 
     void draw(float t = 0.0f) const override;
     void setT(float value) override { t = value; }
@@ -20,7 +20,7 @@ public:
     const mat& getM() const { return M; }
 
 private:
-    mat controlPoints;  
-    mat M;              
+    mat controlPoints;  // 4x2
+    mat M;              // matrice de Bézier 4x4
     float t = 0.5f; 
 };

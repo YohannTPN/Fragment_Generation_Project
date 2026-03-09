@@ -8,35 +8,33 @@ IFSManager::IFSManager()
 }
 
 void IFSManager::setGlobalTransforms(
-    const IFSTransform& Ti,
-    const IFSTransform& Tij,
-    const IFSTransform& Tj
+    const IFSTransform& T0,
+    const IFSTransform& T1
 ) {
-    globalTi = Ti;
-    globalTij = Tij;
-    globalTj = Tj;
+    globalT0 = T0;
+    globalT1 = T1;
     transformsSet = true;
     
-    std::cout << "IFSManager: Transformations globales définies" << std::endl;
+    std::cout << "IFSManager: Transformations globales définies (2 transformations)" << std::endl;
 }
 
 void IFSManager::addEdge(const Vec2f& start, const Vec2f& end) {
     auto edge = std::make_unique<IFSEdge>(start, end);
     
     if (transformsSet) {
-        edge->setTransforms(globalTi, globalTij, globalTj);
+        edge->setTransforms(globalT0, globalT1);
     }
     
     edges.push_back(std::move(edge));
 }
 
 void IFSManager::addEdgeWithControlPoints(const Vec2f& p0, const Vec2f& p1, 
-                                          const Vec2f& p2, const Vec2f& p3) {
-    auto edge = std::make_unique<IFSEdge>(p0, p3);
-    edge->setControlPoints(p1, p2);
+                                          const Vec2f& p2, const Vec2f& p3, const Vec2f& p4) {
+    auto edge = std::make_unique<IFSEdge>(p0, p4);
+    edge->setControlPoints(p1, p2, p3);
     
     if (transformsSet) {
-        edge->setTransforms(globalTi, globalTij, globalTj);
+        edge->setTransforms(globalT0, globalT1);
     }
     
     edges.push_back(std::move(edge));
@@ -81,6 +79,7 @@ void IFSManager::drawUV() const {
         glEnd();
     }
     
+    // Points de contrôle en bleu
     glColor3f(0.0f, 0.0f, 1.0f);  
     glPointSize(4.0f);
     
@@ -90,6 +89,7 @@ void IFSManager::drawUV() const {
         glVertex2f(edge->getP1().u, edge->getP1().v);
         glVertex2f(edge->getP2().u, edge->getP2().v);
         glVertex2f(edge->getP3().u, edge->getP3().v);
+        glVertex2f(edge->getP4().u, edge->getP4().v);
     }
     glEnd();
 }

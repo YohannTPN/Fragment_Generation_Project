@@ -17,11 +17,10 @@ class UVTriangleIFS {
 public:
     UVTriangleIFS(UVTriangleManager* triManager);
     
-    // Définir les transformations IFS globales
+    // Définir les 2 transformations IFS globales
     void setTransforms(
-        const IFSTransform& Ti,
-        const IFSTransform& Tij,
-        const IFSTransform& Tj
+        const IFSTransform& T0,  // Segment gauche
+        const IFSTransform& T1   // Segment droit
     );
     
     // Générer les triangles IFS complets (avec retriangulation)
@@ -51,35 +50,35 @@ private:
     HalfEdgeMesh* generatedMesh = nullptr;
     
     // Clé pour identifier une arête unique
-
-struct EdgeKey {
-    long u1, v1, u2, v2;  
-    
-    EdgeKey(float _u1, float _v1, float _u2, float _v2) {
-        // Quantifier 
-        long qu1 = (long)std::round(_u1 * 100000.0f);
-        long qv1 = (long)std::round(_v1 * 100000.0f);
-        long qu2 = (long)std::round(_u2 * 100000.0f);
-        long qv2 = (long)std::round(_v2 * 100000.0f);
+    struct EdgeKey {
+        long u1, v1, u2, v2;  
         
-        // Normaliser : mettre le point "plus petit" en premier
-        if (qu1 < qu2 || (qu1 == qu2 && qv1 < qv2)) {
-            u1 = qu1; v1 = qv1;
-            u2 = qu2; v2 = qv2;
-        } else {
-            u1 = qu2; v1 = qv2;
-            u2 = qu1; v2 = qv1;
+        EdgeKey(float _u1, float _v1, float _u2, float _v2) {
+            // Quantifier avec précision réduite pour absorber erreurs numériques
+            const long precision = 1000;  // 3 décimales au lieu de 5
+            long qu1 = (long)std::round(_u1 * precision);
+            long qv1 = (long)std::round(_v1 * precision);
+            long qu2 = (long)std::round(_u2 * precision);
+            long qv2 = (long)std::round(_v2 * precision);
+            
+            // Normaliser : mettre le point "plus petit" en premier
+            if (qu1 < qu2 || (qu1 == qu2 && qv1 < qv2)) {
+                u1 = qu1; v1 = qv1;
+                u2 = qu2; v2 = qv2;
+            } else {
+                u1 = qu2; v1 = qv2;
+                u2 = qu1; v2 = qv1;
+            }
         }
-    }
-    
-    bool operator<(const EdgeKey& other) const {
-        // Comparaison stricte sur les LONG 
-        if (u1 != other.u1) return u1 < other.u1;
-        if (v1 != other.v1) return v1 < other.v1;
-        if (u2 != other.u2) return u2 < other.u2;
-        return v2 < other.v2;
-    }
-};
+        
+        bool operator<(const EdgeKey& other) const {
+            // Comparaison stricte sur les LONG 
+            if (u1 != other.u1) return u1 < other.u1;
+            if (v1 != other.v1) return v1 < other.v1;
+            if (u2 != other.u2) return u2 < other.u2;
+            return v2 < other.v2;
+        }
+    };
 
     
     // Map pour stocker les arêtes IFS uniques

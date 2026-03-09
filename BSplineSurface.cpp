@@ -11,7 +11,7 @@ void BSplineSurface::draw(float t) const {
     if (!curve) return;
     curve->setT(t);
 
-    int subdivisions = 40; 
+    int subdivisions = 40; // nombre de segments le long de la courbe
     float du = 1.0f / subdivisions;
 
     glColor3f(0.7f, 0.7f, 1.0f);
@@ -24,12 +24,14 @@ void BSplineSurface::draw(float t) const {
 
         glBegin(GL_TRIANGLE_STRIP);
         for (float u = 0.0f; u <= 1.0f + du; u += du) {
-            arma::vec Bu = curve->evalPoint(u);
+            arma::vec Bu = curve->evalPoint(u); // 2D → [r, y]
             float r = Bu(0);
             float y = Bu(1);
 
+            // 1er point (courbe à angle1)
             glVertex3f(r * c1, y, r * s1);
 
+            // 2e point (courbe à angle2)
             glVertex3f(r * c2, y, r * s2);
         }
         glEnd();
@@ -43,7 +45,7 @@ void BSplineSurface::draw(float t) const {
 
     glColor3f(0.6f, 0.6f, 0.9f);
     glBegin(GL_TRIANGLE_FAN);
-        glVertex3f(0.0f, y, 0.0f); 
+        glVertex3f(0.0f, y, 0.0f); // centre
         int n = 40;
         for (int i = 0; i <= n; ++i) {
             float angle = 2.0f * M_PI * i / n;
@@ -53,5 +55,6 @@ void BSplineSurface::draw(float t) const {
         }
     glEnd();
 
+    // Dessiner la courbe de profil par dessus la surface
     curve->draw(t);
 }

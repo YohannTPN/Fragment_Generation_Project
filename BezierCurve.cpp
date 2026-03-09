@@ -18,7 +18,7 @@ vec BezierCurve::evalPoint(double u) const {
 
 vec BezierCurve::evalDerivative(double u) const {
     mat dTu = {0.0, 1.0, 2.0*u, 3.0*u*u}; // Dérivée de Tu
-    mat dBu = dTu * M * controlPoints; 
+    mat dBu = dTu * M * controlPoints; // 1x2
     return dBu.row(0).t();
 }
 

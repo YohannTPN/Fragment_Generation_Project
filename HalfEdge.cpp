@@ -388,11 +388,11 @@ std::cout << "  Total de murs à créer: " << borderEdges.size() << std::endl;
 // Créer les quads (2 triangles) pour chaque mur
 int wallsCreated = 0;
 for (HalfEdge* he : borderEdges) {
-    Vertex* topV1 = he->next->next->vertex;  
-    Vertex* topV2 = he->vertex;            
+    Vertex* topV1 = he->next->next->vertex;  // Origine TOP
+    Vertex* topV2 = he->vertex;              // Destination TOP
     
-    Vertex* botV1 = extrudedVertices[topV1->id]; 
-    Vertex* botV2 = extrudedVertices[topV2->id];  
+    Vertex* botV1 = extrudedVertices[topV1->id];  // Origine BOTTOM
+    Vertex* botV2 = extrudedVertices[topV2->id];  // Destination BOTTOM
     
     // Hériter de la couleur et du fragmentId de la face parent
     Face* parentFace = he->face;
@@ -457,13 +457,13 @@ void HalfEdgeMesh::drawWireframe() const {
     
     
     
-    std::set<std::string> drawnEdges; 
+    std::set<std::string> drawnEdges; // Pour éviter les doublons si vous préférez
 
     for (const auto& he : halfEdges) {
         if (!he->face) continue; // Ignorer les arêtes "orphelines" si elles existent
 
-        Vertex* v1 = he->next->next->vertex;
-        Vertex* v2 = he->vertex;            
+        Vertex* v1 = he->next->next->vertex; // Origine
+        Vertex* v2 = he->vertex;             // Destination
         
         
         if (he->twin == nullptr || v1->id < v2->id) {

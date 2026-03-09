@@ -8,11 +8,10 @@ class IFSManager {
 public:
     IFSManager();
     
-    // Définir les transformations globales (mêmes pour toutes les arêtes)
+    // Définir les 2 transformations globales (mêmes pour toutes les arêtes)
     void setGlobalTransforms(
-        const IFSTransform& Ti,
-        const IFSTransform& Tij,
-        const IFSTransform& Tj
+        const IFSTransform& T0,   // Segment gauche
+        const IFSTransform& T1    // Segment droit
     );
     
     // Ajouter une arête à traiter
@@ -20,7 +19,7 @@ public:
     
     // Ajouter une arête avec points de contrôle personnalisés
     void addEdgeWithControlPoints(const Vec2f& p0, const Vec2f& p1, 
-                                   const Vec2f& p2, const Vec2f& p3);
+                                   const Vec2f& p2, const Vec2f& p3, const Vec2f& p4);
     
     // Générer toutes les arêtes IFS avec la profondeur donnée
     void generate(int depth);
@@ -41,9 +40,8 @@ public:
     int getDepth() const { return currentDepth; }
     
     // Transformations globales (public pour UVTriangleIFS)
-    IFSTransform globalTi;
-    IFSTransform globalTij;
-    IFSTransform globalTj;
+    IFSTransform globalT0;  // Segment gauche
+    IFSTransform globalT1;  // Segment droit
 
 private:
     std::vector<std::unique_ptr<IFSEdge>> edges;

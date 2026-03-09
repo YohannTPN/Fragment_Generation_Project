@@ -14,9 +14,9 @@ void InputManager::keyboard(unsigned char key, int, int) {
         if (triManager) {
             // Régénère 25 nouveaux sites avec une seed basée sur l'heure actuelle
             //triManager->generateVoronoiSites(25, std::time(nullptr)); 
-            redrawAll(); 
+            redrawAll(); // Appel de la fonction globale pour rafraîchir les deux vues
         }
-        return; 
+        return; // Consomme l'événement 'r'
     }
 
     

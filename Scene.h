@@ -11,6 +11,7 @@ public:
 
     void drawAxes() const;
 
+    // paramètres de caméra accessibles depuis InputManager
     float cameraDistance;
     float cameraAngleX;
     float cameraAngleY;

@@ -3,6 +3,7 @@
 ParametricSpace::ParametricSpace(int rU, int rV) : resU(rU), resV(rV) {}
 
 void ParametricSpace::draw() const {
+    // grille
     glColor3f(0.5f,0.5f,0.5f);
     glBegin(GL_LINES);
     for(int i=0;i<=resU;i++){

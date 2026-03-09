@@ -13,8 +13,10 @@ Vec3f ParametricMapping::map(float u, float v) const {
     const Curve* curve = surface->getCurve();
     if (!curve) return Vec3f();
 
+    // 2. Utiliser la méthode evalPoint générique (gère B-spline et Bézier)
     arma::vec Bu = curve->evalPoint(u); // 2D → [r, y]
 
+    // Bu est un vec de taille 2 (r, y)
     float r = Bu(0); // rayon
     float y = Bu(1); // hauteur
 

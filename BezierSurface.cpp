@@ -10,7 +10,7 @@ BezierSurface::BezierSurface( BezierCurve* c, int s)
 void BezierSurface::draw(float t) const {
     if (!curve) return;
     
-   
+    // Transmet le temps à la courbe
     curve->setT(t);
 
     int subdivisions = 10; // nombre de segments le long de la courbe
@@ -27,13 +27,13 @@ void BezierSurface::draw(float t) const {
         glBegin(GL_TRIANGLE_STRIP);
         for (float u = 0.0f; u <= 1.0f + du; u += du) {
             vec Bu = curve->evalPoint(u); 
-            float r = Bu(0); 
-            float y = Bu(1); 
+            float r = Bu(0); // rayon
+            float y = Bu(1); // hauteur
 
-            
+            // 1er point (courbe à angle1)
             glVertex3f(r * c1, y, r * s1);
 
-        
+            // 2e point (courbe à angle2)
             glVertex3f(r * c2, y, r * s2);
         }
         glEnd();

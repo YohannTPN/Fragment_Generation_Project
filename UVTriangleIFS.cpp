@@ -3,42 +3,26 @@
 #include <GL/glut.h>
 #include <cmath>
 
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Delaunay_triangulation_2.h>
-#include <CGAL/Triangulation_vertex_base_with_info_2.h>
-
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-
-struct VertexInfo {
-    float r, g, b;  // Couleur du triangle d'origine
-};
-
-typedef CGAL::Triangulation_vertex_base_with_info_2<VertexInfo, K> Vb;
-typedef CGAL::Triangulation_data_structure_2<Vb> Tds;
-typedef CGAL::Delaunay_triangulation_2<K, Tds> Delaunay;
-typedef K::Point_2 Point_2;
-
 UVTriangleIFS::UVTriangleIFS(UVTriangleManager* triManager) 
     : triangleManager(triManager), currentDepth(0), generatedMesh(new HalfEdgeMesh()) 
 {
 }
 
-
-
 void UVTriangleIFS::setTransforms(
-    const IFSTransform& Ti,
-    const IFSTransform& Tij,
-    const IFSTransform& Tj
+    const IFSTransform& T0,
+    const IFSTransform& T1
 ) {
-    ifsManager.setGlobalTransforms(Ti, Tij, Tj);
+    ifsManager.setGlobalTransforms(T0, T1);
 }
 
 std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u2, float v2) {
+    const long precision = 1000;  // Même précision que dans EdgeKey
+    
     EdgeKey key(u1, v1, u2, v2);
     
     // Détecter si on doit inverser
-    long qu1 = (long)std::round(u1 * 100000.0f);
-    long qv1 = (long)std::round(v1 * 100000.0f);
+    long qu1 = (long)std::round(u1 * precision);
+    long qv1 = (long)std::round(v1 * precision);
     bool needsReversal = (qu1 != key.u1 || qv1 != key.v1);
     
     auto it = edgeIFSCache.find(key);
@@ -52,8 +36,8 @@ std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u
     }
     
     // Détecter les bords
-    const long epsilon = (long)(0.001f * 100000.0f);
-    const long quantMax = (long)(1.0f * 100000.0f);
+    const long epsilon = (long)(0.001f * precision);
+    const long quantMax = (long)(1.0f * precision);
     
     bool onLeftBorder = (std::abs(key.u1) < epsilon && std::abs(key.u2) < epsilon);
     bool onRightBorder = (std::abs(key.u1 - quantMax) < epsilon && std::abs(key.u2 - quantMax) < epsilon);
@@ -63,10 +47,10 @@ std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u
     bool isBorderEdge = onLeftBorder || onRightBorder || onBottomBorder || onTopBorder;
     
     if (isBorderEdge) {
-        float fu1 = key.u1 / 100000.0f;
-        float fv1 = key.v1 / 100000.0f;
-        float fu2 = key.u2 / 100000.0f;
-        float fv2 = key.v2 / 100000.0f;
+        float fu1 = key.u1 / (float)precision;
+        float fv1 = key.v1 / (float)precision;
+        float fu2 = key.u2 / (float)precision;
+        float fv2 = key.v2 / (float)precision;
         
         std::vector<Vec2f> straightLine;
         straightLine.push_back(Vec2f(fu1, fv1));
@@ -79,14 +63,15 @@ std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u
         return straightLine;
     }
     
-    // Générer les points IFS
-    float fu1 = key.u1 / 100000.0f;
-    float fv1 = key.v1 / 100000.0f;
-    float fu2 = key.u2 / 100000.0f;
-    float fv2 = key.v2 / 100000.0f;
+    // Générer les points IFS avec 5 points de contrôle
+    float fu1 = key.u1 / (float)precision;
+    float fv1 = key.v1 / (float)precision;
+    float fu2 = key.u2 / (float)precision;
+    float fv2 = key.v2 / (float)precision;
     
     auto edge = std::make_unique<IFSEdge>(Vec2f(fu1, fv1), Vec2f(fu2, fv2));
     
+    // Calculer les points de contrôle pour former un "chapeau"
     float dx = fu2 - fu1;
     float dy = fv2 - fv1;
     float length = std::sqrt(dx * dx + dy * dy);
@@ -94,42 +79,41 @@ std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u
     float perpX = -dy / length;
     float perpY = dx / length;
     
-    float amplitude = length * 0.02f;
+    // Amplitude plus grande pour un chapeau visible
+    float amplitude = length * 0.15f;  // 15% au lieu de 2%
     
+    // P1 à 1/4 déplacé VERS LE HAUT
     Vec2f p1;
-    p1.u = fu1 + dx / 3.0f + perpX * amplitude;
-    p1.v = fv1 + dy / 3.0f + perpY * amplitude;
+    p1.u = fu1 + dx / 4.0f + perpX * amplitude;
+    p1.v = fv1 + dy / 4.0f + perpY * amplitude;
     
+    // P2 à 1/2 reste SUR LA LIGNE (pas de déplacement perpendiculaire)
     Vec2f p2;
-    p2.u = fu1 + 2.0f * dx / 3.0f - perpX * amplitude;
-    p2.v = fv1 + 2.0f * dy / 3.0f - perpY * amplitude;
+    p2.u = fu1 + dx / 2.0f;
+    p2.v = fv1 + dy / 2.0f;
     
-    edge->setControlPoints(p1, p2);
+    // P3 à 3/4 déplacé VERS LE BAS (négatif)
+    Vec2f p3;
+    p3.u = fu1 + 3.0f * dx / 4.0f - perpX * amplitude;
+    p3.v = fv1 + 3.0f * dy / 4.0f - perpY * amplitude;
+    
+    edge->setControlPoints(p1, p2, p3);
     edge->setTransforms(
-        ifsManager.globalTi, 
-        ifsManager.globalTij, 
-        ifsManager.globalTj
+        ifsManager.globalT0,
+        ifsManager.globalT1
     );
     
     std::vector<Vec2f> points = edge->generate(currentDepth);
     
-    // === QUANTIFIER TOUS LES POINTS AVANT MISE EN CACHE ===
-    const float quantPrecision = 100000.0f;
-    for (auto& pt : points) {
-        pt.u = std::round(pt.u * quantPrecision) / quantPrecision;
-        pt.v = std::round(pt.v * quantPrecision) / quantPrecision;
+    // Quantifier tous les points SAUF les extrémités (déjà forcées)
+    const float quantPrecision = (float)precision;
+    for (size_t i = 1; i < points.size() - 1; ++i) {
+        points[i].u = std::round(points[i].u * quantPrecision) / quantPrecision;
+        points[i].v = std::round(points[i].v * quantPrecision) / quantPrecision;
     }
     
-    // S'assurer que le premier et dernier point sont EXACTEMENT
-    // les sommets quantifiés de l'arête
-    if (!points.empty()) {
-        points[0].u = fu1;
-        points[0].v = fv1;
-        points[points.size() - 1].u = fu2;
-        points[points.size() - 1].v = fv2;
-    }
+    // Les extrémités sont déjà forcées à fu1,fv1 et fu2,fv2 dans IFSEdge::generate()
     
-
     edgeIFSCache[key] = points;
     
     if (needsReversal) {
@@ -154,27 +138,16 @@ void UVTriangleIFS::generateIFSTriangles(int ifsDepth) {
     std::cout << "Génération IFS pour " << triangles.size() 
               << " triangles (profondeur " << ifsDepth << ")..." << std::endl;
     
+    // Compter le nombre total d'arêtes (avant dédoublonnage)
+    int totalEdgeRequests = 0;
+    
     for (const auto& tri : triangles) {
+        totalEdgeRequests += 3;  // 3 arêtes par triangle
+        
         std::vector<Vec2f> edge1 = getOrCreateEdgeIFS(tri.u1, tri.v1, tri.u2, tri.v2);
         std::vector<Vec2f> edge2 = getOrCreateEdgeIFS(tri.u2, tri.v2, tri.u3, tri.v3);
         std::vector<Vec2f> edge3 = getOrCreateEdgeIFS(tri.u3, tri.v3, tri.u1, tri.v1);
 
-
-        static bool firstTime = true;
-        if (firstTime) {
-            std::cout << "=== DIAGNOSTIC ARÊTES IFS ===" << std::endl;
-            std::cout << "Triangle original: (" << tri.u1 << "," << tri.v1 << ") -> (" 
-                      << tri.u2 << "," << tri.v2 << ") -> (" << tri.u3 << "," << tri.v3 << ")" << std::endl;
-            std::cout << "Edge1 premier point: (" << edge1[0].u << "," << edge1[0].v << ")" << std::endl;
-            std::cout << "Edge1 dernier point: (" << edge1[edge1.size()-1].u << "," << edge1[edge1.size()-1].v << ")" << std::endl;
-            std::cout << "Edge2 premier point: (" << edge2[0].u << "," << edge2[0].v << ")" << std::endl;
-            std::cout << "Différence edge1.last vs edge2.first (u): " 
-                      << std::abs(edge1[edge1.size()-1].u - edge2[0].u) << std::endl;
-            std::cout << "Différence edge1.last vs edge2.first (v): " 
-                      << std::abs(edge1[edge1.size()-1].v - edge2[0].v) << std::endl;
-            firstTime = false;
-        }
-        
         IFSTriangle ifsTri;
         ifsTri.r = tri.r;
         ifsTri.g = tri.g;
@@ -182,6 +155,7 @@ void UVTriangleIFS::generateIFSTriangles(int ifsDepth) {
         
         ifsTri.boundary.clear();
         
+        // Assembler sans les derniers points (pour éviter doublons)
         for (size_t i = 0; i < edge1.size() - 1; ++i) {
             ifsTri.boundary.push_back(edge1[i]);
         }
@@ -198,6 +172,13 @@ void UVTriangleIFS::generateIFSTriangles(int ifsDepth) {
     }
     
     std::cout << "✓ " << ifsTriangles.size() << " triangles IFS générés" << std::endl;
+    std::cout << "=== DIAGNOSTIC ARÊTES ===" << std::endl;
+    std::cout << "Arêtes demandées: " << totalEdgeRequests << std::endl;
+    std::cout << "Arêtes uniques créées: " << edgeIFSCache.size() << std::endl;
+    std::cout << "Taux de dédoublonnage: " 
+              << (100.0f * edgeIFSCache.size() / totalEdgeRequests) << "%" << std::endl;
+    std::cout << "Attendu (maillage parfait): ~" << (totalEdgeRequests / 2) << " arêtes" << std::endl;
+    std::cout << "=========================" << std::endl;
 }
 
 void UVTriangleIFS::drawUVWireframe() const {
@@ -261,7 +242,6 @@ void UVTriangleIFS::draw3D(bool wireframe, bool explosion, float explosionFactor
     }
 }
 
-
 void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping) {
     if (!mesh || !mapping) {
         std::cerr << "ERREUR: mesh ou mapping null!" << std::endl;
@@ -270,7 +250,7 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
     
     mesh->clear();
     
-    std::cout << "Construction du maillage 3D IFS (Smart Triangulation)..." << std::endl;
+    std::cout << "Construction du maillage 3D IFS..." << std::endl;
     
     std::vector<DelaunayTriangle> simpleTriangles;
     int fragmentId = 0;
@@ -280,16 +260,13 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
         size_t n = ifsTri.boundary.size();
         if (n < 3) continue;
 
-        // Lambda pour ajouter un triangle proprement avec vérification d'aire et d'orientation
         auto addTri = [&](const Vec2f& p1, const Vec2f& p2, const Vec2f& p3) {
             float u1 = p1.u, v1 = p1.v;
             float u2 = p2.u, v2 = p2.v;
             float u3 = p3.u, v3 = p3.v;
 
-            // 1. Calcul de l'aire signée (Cross Product 2D)
             float cross_product = (u2 - u1) * (v3 - v1) - (v2 - v1) * (u3 - u1);
             
-            // 2. FILTRE ANTI-PICS : Si le triangle est trop plat (aire quasi nulle), on le jette.
             if (std::abs(cross_product) < 0.000001f) {
                 skippedSlivers++;
                 return;
@@ -301,11 +278,9 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
             tri.b = ifsTri.b;
             tri.fragmentId = fragmentId;
 
-            // 3. Correction du Winding (Toujours Anti-Horaire)
             if (cross_product < 0) {
-                // Sens Horaire -> On inverse pour avoir une normale sortante
                 tri.u1 = u1; tri.v1 = v1;
-                tri.u2 = u3; tri.v2 = v3; // Swap 2 et 3
+                tri.u2 = u3; tri.v2 = v3;
                 tri.u3 = u2; tri.v3 = v2;
             } else {
                 tri.u1 = u1; tri.v1 = v1;
@@ -315,15 +290,10 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
             simpleTriangles.push_back(tri);
         };
 
-        // --- STRATÉGIE DE TRIANGULATION ---
-        
         if (n == 3) {
-            // Cas simple : Triangle
             addTri(ifsTri.boundary[0], ifsTri.boundary[1], ifsTri.boundary[2]);
         }
         else if (n == 4) {
-            // Cas Quadrilatère : "Shortest Diagonal"
-            // On coupe selon la diagonale la plus courte pour mieux respecter la concavité
             const auto& p0 = ifsTri.boundary[0];
             const auto& p1 = ifsTri.boundary[1];
             const auto& p2 = ifsTri.boundary[2];
@@ -333,17 +303,14 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
             float dist13 = std::pow(p1.u - p3.u, 2) + std::pow(p1.v - p3.v, 2);
 
             if (dist02 < dist13) {
-                // Coupure 0-2
                 addTri(p0, p1, p2);
                 addTri(p0, p2, p3);
             } else {
-                // Coupure 1-3
                 addTri(p0, p1, p3);
                 addTri(p1, p2, p3);
             }
         }
         else {
-            // Cas N > 4 : Méthode Centroïde (Repli si nécessaire)
             float centerU = 0.0f;
             float centerV = 0.0f;
             for (const auto& p : ifsTri.boundary) {
@@ -352,7 +319,7 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
             }
             centerU /= n;
             centerV /= n;
-            Vec2f center = {centerU, centerV}; // Supposant que Vec2f a un constructeur ou {u, v}
+            Vec2f center = {centerU, centerV};
 
             for (size_t i = 0; i < n; ++i) {
                 addTri(center, ifsTri.boundary[i], ifsTri.boundary[(i + 1) % n]);
@@ -362,20 +329,23 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
         fragmentId++;
     }
     
-    std::cout << "✓ Triangles valides: " << simpleTriangles.size() 
-              << " (Rejetés car trop plats: " << skippedSlivers << ")" << std::endl;
+    std::cout << "✓ Triangles créés: " << simpleTriangles.size() 
+              << " (Rejetés: " << skippedSlivers << ")" << std::endl;
     
-    // Construction via Delaunay/Subdivision
-    int subdivisions = 3; 
+    // Construction via subdivision réduite
+    int subdivisions = 2;
     mesh->buildFromDelaunayTriangulation(simpleTriangles, mapping, subdivisions);
     
-    // Finalisation
     mesh->connectTwins();
     mesh->computeVertexNormals();
+    
+    std::cout << "✓ Maillage IFS terminé" << std::endl;
     
     // EXTRUSION
     if (triangleManager && triangleManager->isExtrusionEnabled()) {
         float depth = triangleManager->getExtrusionDepth();
+        std::cout << "Application extrusion (depth=" << depth << ")..." << std::endl;
         mesh->extrudeMesh(depth);
+        std::cout << "✓ Extrusion terminée" << std::endl;
     }
 }

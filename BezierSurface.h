@@ -16,12 +16,12 @@ public:
     }
     float getT() const override { return curve ? curve->getT() : 0.0f; }
 
-
+    // --- Implémentation obligatoire de RevolutionSurface ---
     BezierCurve* getCurve() override { return curve; } 
     
     const BezierCurve* getCurve() const override { return curve; }
 
 private:
-    BezierCurve* curve; 
-    int slices;              
+    BezierCurve* curve; // courbe verticale
+    int slices;               // nombre de segments autour de l’axe Y
 };

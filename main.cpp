@@ -33,7 +33,7 @@ ParametricMapping* mapping;
 UVTriangleManager* triManager;
 
 UVTriangleIFS* triangleIFS = nullptr;
-HalfEdgeMesh* ifsMesh3D = nullptr;  
+HalfEdgeMesh* ifsMesh3D = nullptr;  // Maillage IFS permanent
 bool showIFS = false; 
 int ifsDepth = 2; 
 
@@ -83,6 +83,7 @@ void displayWrapper() {
     scene->display(input->getT()); 
 
     if (showIFS && ifsMesh3D) {
+    // Détection changement extrusion
     static bool lastExtrusionState = false;
     if (lastExtrusionState != triManager->isExtrusionEnabled()) {
         delete ifsMesh3D;
@@ -91,7 +92,7 @@ void displayWrapper() {
         lastExtrusionState = triManager->isExtrusionEnabled();
     }
     
-
+    // Dessin
     if (triManager->isExplosionEnabled()) {
         ifsMesh3D->drawExploded(triManager->getExplosionFactor());
     } else {
@@ -179,33 +180,47 @@ int main(int argc,char** argv){
     triManager->setExtrusionEnabled(true); 
     triManager->generateDelaunayTriangulation(30, std::time(nullptr));
 
-
+    // === CODE IFS ===
     triangleIFS = new UVTriangleIFS(triManager);
     
-    IFSTransform Ti = IFSTransform::createTi(
-    0.98f, 0.01f, -0.005f, 0.0f,   // c2 (très proche de [1,0,0,0])
-    0.005f, 0.98f, 0.01f, 0.0f     // c3 (très proche de [0,1,0,0])
-);
+// Paramètres selon le fichier courbe.txt
+float a_param = -0.1f;   // Paramètre a
+float a = 2.0f * a_param;       // a = 2*a_param = -0.2
+float a1 = 0.5f - a;            // a1 = 0.5 - a = 0.7 (mais fichier dit 0.6, donc utiliser 0.6)
 
-IFSTransform Tij = IFSTransform::createTij(
-    0.0f, 0.99f, 0.01f, 0.0f,      // c4
-    0.0f, 0.005f, 0.995f, 0.0f     // c5
-);
+float c_param = 0.2f;    // Paramètre c  
+float b = 2.0f * c_param;       // b = 2*c_param = 0.4
+float b1 = 0.5f - b;            // b1 = 0.5 - b = 0.1 (mais fichier dit 0.3, donc utiliser 0.3)
 
-IFSTransform Tj = IFSTransform::createTj(
-    0.01f, 0.0f, 0.99f, 0.0f,      // c6
-    0.0f, 0.005f, 0.0f, 0.995f     // c7
-);
-    
-    triangleIFS->setTransforms(Ti, Tij, Tj);
-    
-    std::cout << "\n=== Génération IFS ===\n";
-    triangleIFS->generateIFSTriangles(ifsDepth);
-    std::cout << "=== IFS prêt ===\n\n";
-    
-    // Générer le maillage 3D IFS initial
-    regenerateIFSMesh();
+// Valeurs finales (pour que les sommes = 1)
+a1 = 0.6f;
+a = -0.2f;
+b1 = 0.3f;
+b = 0.4f;
 
+std::cout << "\n=== Configuration IFS ===\n";
+std::cout << "T0 (segment gauche): a=" << a << ", a1=" << a1 << "\n";
+std::cout << "T1 (segment droit): b=" << b << ", b1=" << b1 << "\n";
+
+// Créer les 2 transformations
+IFSTransform T0 = IFSTransform::createT0(a, a1);
+IFSTransform T1 = IFSTransform::createT1(b, b1);
+
+std::cout << "\nMatrice T0 (segment gauche):\n";
+T0.print();
+std::cout << "\nMatrice T1 (segment droit):\n";
+T1.print();
+
+// Définir les transformations
+triangleIFS->setTransforms(T0, T1);
+
+std::cout << "\n=== Génération IFS ===\n";
+triangleIFS->generateIFSTriangles(ifsDepth);
+std::cout << "=== IFS prêt ===\n\n";
+
+// Générer le maillage 3D IFS initial
+regenerateIFSMesh();
+    // === CODE IFS ===
 
     input = new InputManager(scene, triManager);
 
@@ -226,7 +241,7 @@ IFSTransform Tj = IFSTransform::createTj(
     glutKeyboardFunc([](unsigned char k,int x,int y){ 
         input->keyboard(k,x,y);
         
- 
+        // Nouveaux contrôles IFS
         if (k == 'i' || k == 'I') {
             showIFS = !showIFS;
             std::cout << "IFS " << (showIFS ? "ON" : "OFF") << std::endl;

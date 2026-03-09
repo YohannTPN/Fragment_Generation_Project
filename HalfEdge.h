@@ -4,11 +4,12 @@
 #include <unordered_map>
 #include "ParametricMapping.h"
 
+// Forward declarations
 struct HalfEdge;
 struct Vertex;
 struct Face;
 
-
+// Définition de DelaunayTriangle 
 struct DelaunayTriangle {
     float u1, v1;
     float u2, v2;
@@ -38,7 +39,7 @@ struct Face {
     HalfEdge* halfEdge;       // Une demi-arête de la face
     float r, g, b;            // Couleur de la face
     int id;                   // Identifiant unique de la face
-    int fragmentId;           
+    int fragmentId;           // NOUVEAU : Identifiant du fragment parent
     
     Face(int id_val) : halfEdge(nullptr), r(0.7f), g(0.7f), b(0.7f), 
                        id(id_val), fragmentId(-1) {}  // -1 = non assigné

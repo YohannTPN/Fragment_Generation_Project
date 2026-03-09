@@ -45,12 +45,12 @@ vec BSplineCurve::evalDerivative(double u) const {
         }
         derivative += b_deriv * controlPoints.row(i).t();
     }
- 
+    // Ajustement pour le changement d'échelle de u
     derivative *= (n - (k - 1));
     return derivative;
 }
 
-
+// Fonction de base B-spline (Cox-de Boor)
 double BSplineCurve::basis(int i, int k, double u) const {
     if (k == 0) {
         // Condition de base: B_{i,0}(u) = 1 si u est dans l'intervalle [i, i+1[, 0 sinon.
@@ -79,31 +79,36 @@ double BSplineCurve::basis(int i, int k, double u) const {
 void BSplineCurve::draw(float t) const {
     if (controlPoints.n_rows == 0) return;
 
+    // --- point courant ---
     vec B = evalPoint(t);
     glPointSize(5.0);
     glBegin(GL_POINTS);
-        glColor3f(1.0,0.0,0.0); 
+        glColor3f(1.0,0.0,0.0); // Rouge
         glVertex2f(B(0), B(1));
     glEnd();
 
+    // --- courbe complète ---
     glPointSize(3.0);
     glBegin(GL_LINE_STRIP);
-        glColor3f(1.0,1.0,1.0); 
+        glColor3f(1.0,1.0,1.0); // Blanc
+        // u va de 0.0 à 1.0, et evalPoint s'occupe de la mise à l'échelle.
         for(double u = 0.0; u <= 1.0; u += 0.01) {
             vec Bu = evalPoint(u);
             glVertex2f(Bu(0), Bu(1));
         }
     glEnd();
 
+    // --- points de contrôle ---
     glPointSize(5.0);
     glBegin(GL_POINTS);
-        glColor3f(0.0,1.0,0.0); 
+        glColor3f(0.0,1.0,0.0); // Vert
         for(int i = 0; i < controlPoints.n_rows; ++i)
             glVertex2f(controlPoints(i,0), controlPoints(i,1));
     glEnd();
 
+    // --- lignes de contrôle ---
     glBegin(GL_LINE_STRIP);
-        glColor3f(0.5,0.5,0.5); 
+        glColor3f(0.5,0.5,0.5); // Gris
         for(int i = 0; i < controlPoints.n_rows; ++i)
             glVertex2f(controlPoints(i,0), controlPoints(i,1));
     glEnd();

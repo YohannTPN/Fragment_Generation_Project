@@ -12,7 +12,7 @@ inline float distSqCylindrical(float u, float v, const UVPoint& p) {
     
     // Distance angulaire minimale (périodique)
     float dv = std::abs(v - p.v);
-    if (dv > 0.5f) dv = 1.0f - dv; 
+    if (dv > 0.5f) dv = 1.0f - dv;  // wraparound
     
     return du * du + dv * dv;
 }
@@ -69,7 +69,8 @@ void UVTriangleManager::addTriangle(const UVTriangle& tri) {
 
 void UVTriangleManager::draw() const {
     if (!mapping) return;
-
+    
+    // Désactiver l'éclairage pour un rendu plat du patchwork
     glDisable(GL_LIGHTING);
     
     if (!voronoiSites.empty()) {
@@ -149,7 +150,7 @@ void UVTriangleManager::draw() const {
         }
     }
     
-
+    // Réactiver l'éclairage pour les autres objets
     glEnable(GL_LIGHTING);
 }
 
