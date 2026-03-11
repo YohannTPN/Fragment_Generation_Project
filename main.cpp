@@ -35,7 +35,7 @@ UVTriangleManager* triManager;
 UVTriangleIFS* triangleIFS = nullptr;
 HalfEdgeMesh* ifsMesh3D = nullptr;  // Maillage IFS permanent
 bool showIFS = false; 
-int ifsDepth = 2; 
+int ifsDepth = 4; 
 
 int mainWindowId;
 int uvwWindowId; 
@@ -91,6 +91,8 @@ void displayWrapper() {
         triangleIFS->buildIFSMesh(ifsMesh3D, mapping);
         lastExtrusionState = triManager->isExtrusionEnabled();
     }
+
+    
     
     // Dessin
     if (triManager->isExplosionEnabled()) {
@@ -263,6 +265,14 @@ regenerateIFSMesh();
             std::cout << "Fait!" << std::endl;
             redrawAll();
         }
+
+        else if (k == 'o' || k == 'O') {
+    if (showIFS && ifsMesh3D) {
+        ifsMesh3D->exportOBJ("ifs_mesh.obj");
+    } else {
+        std::cout << "Activer l'IFS d'abord (touche I)" << std::endl;
+    }
+}
     });
 
     glutMainLoop();

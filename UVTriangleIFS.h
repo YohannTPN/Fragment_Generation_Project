@@ -9,7 +9,12 @@
 // Structure pour représenter un triangle avec arêtes IFS
 struct IFSTriangle {
     std::vector<Vec2f> boundary;  // Points du périmètre (arêtes IFS)
-    float r, g, b;  // Couleur du triangle
+    float r, g, b;                // Couleur du triangle
+
+    // Centroïde des 3 sommets Delaunay ORIGINAUX.
+    // Toujours strictement à l'intérieur du triangle → jamais biaisé
+    // par la forme de la courbe IFS.
+    Vec2f originalCentroid;
 };
 
 // Classe pour appliquer l'IFS sur les arêtes et retrianguler
@@ -54,14 +59,12 @@ private:
         long u1, v1, u2, v2;  
         
         EdgeKey(float _u1, float _v1, float _u2, float _v2) {
-            // Quantifier avec précision réduite pour absorber erreurs numériques
-            const long precision = 1000;  // 3 décimales au lieu de 5
+            const long precision = 1000;
             long qu1 = (long)std::round(_u1 * precision);
             long qv1 = (long)std::round(_v1 * precision);
             long qu2 = (long)std::round(_u2 * precision);
             long qv2 = (long)std::round(_v2 * precision);
             
-            // Normaliser : mettre le point "plus petit" en premier
             if (qu1 < qu2 || (qu1 == qu2 && qv1 < qv2)) {
                 u1 = qu1; v1 = qv1;
                 u2 = qu2; v2 = qv2;
@@ -72,7 +75,6 @@ private:
         }
         
         bool operator<(const EdgeKey& other) const {
-            // Comparaison stricte sur les LONG 
             if (u1 != other.u1) return u1 < other.u1;
             if (v1 != other.v1) return v1 < other.v1;
             if (u2 != other.u2) return u2 < other.u2;
@@ -80,10 +82,6 @@ private:
         }
     };
 
-    
-    // Map pour stocker les arêtes IFS uniques
     std::map<EdgeKey, std::vector<Vec2f>> edgeIFSCache;
-    
-    // Générer ou récupérer une arête IFS
     std::vector<Vec2f> getOrCreateEdgeIFS(float u1, float v1, float u2, float v2);
 };

@@ -5,6 +5,8 @@
 #include <cmath>
 #include <iostream>
 #include <set>
+#include <fstream>
+#include <map>
 
 HalfEdgeMesh::HalfEdgeMesh() : vertexIdCounter(0), faceIdCounter(0) {}
 
@@ -578,4 +580,61 @@ void HalfEdgeMesh::drawExploded(float factor) const {
             glEnd();
         }
     }
+}
+
+void HalfEdgeMesh::exportOBJ(const std::string& filename) const {
+    std::ofstream file(filename);
+    if (!file.is_open()) return;
+
+    file << "# IFS Mesh Export\n";
+
+    // Grouper les faces par fragmentId
+    std::map<int, std::vector<Face*>> fragmentFaces;
+    for (auto* f : faces) {
+        fragmentFaces[f->fragmentId].push_back(f);
+    }
+
+    int vertexOffset = 1;  // OBJ est 1-based
+
+    for (const auto& group : fragmentFaces) {
+        file << "g fragment_" << group.first << "\n";
+
+        // Collecter les vertices de CE fragment uniquement
+        std::map<int, int> localIndex;  // id global → index local dans ce groupe
+        int localCount = 0;
+
+        for (const auto* f : group.second) {
+            if (!f->halfEdge) continue;
+            HalfEdge* he = f->halfEdge;
+            Vertex* verts[3] = {
+                he->vertex,
+                he->next->vertex,
+                he->next->next->vertex
+            };
+            for (auto* v : verts) {
+                if (localIndex.find(v->id) == localIndex.end()) {
+                    localIndex[v->id] = localCount++;
+                    file << "v " << v->position.x << " "
+                                 << v->position.y << " "
+                                 << v->position.z << "\n";
+                }
+            }
+        }
+
+        // Écrire les faces avec indices locaux
+        for (const auto* f : group.second) {
+            if (!f->halfEdge) continue;
+            HalfEdge* he = f->halfEdge;
+            file << "f "
+                 << (localIndex[he->vertex->id]             + vertexOffset) << " "
+                 << (localIndex[he->next->vertex->id]       + vertexOffset) << " "
+                 << (localIndex[he->next->next->vertex->id] + vertexOffset) << "\n";
+        }
+
+        vertexOffset += localCount;
+    }
+
+    file.close();
+    std::cout << "✓ Export OBJ : " << filename
+              << " (" << fragmentFaces.size() << " fragments)" << std::endl;
 }

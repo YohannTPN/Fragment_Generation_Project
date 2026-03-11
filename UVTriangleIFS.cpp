@@ -3,6 +3,8 @@
 #include <GL/glut.h>
 #include <cmath>
 
+
+
 UVTriangleIFS::UVTriangleIFS(UVTriangleManager* triManager) 
     : triangleManager(triManager), currentDepth(0), generatedMesh(new HalfEdgeMesh()) 
 {
@@ -71,7 +73,6 @@ std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u
     
     auto edge = std::make_unique<IFSEdge>(Vec2f(fu1, fv1), Vec2f(fu2, fv2));
     
-    // Calculer les points de contrôle pour former un "chapeau"
     float dx = fu2 - fu1;
     float dy = fv2 - fv1;
     float length = std::sqrt(dx * dx + dy * dy);
@@ -79,8 +80,7 @@ std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u
     float perpX = -dy / length;
     float perpY = dx / length;
     
-    // Amplitude plus grande pour un chapeau visible
-    float amplitude = length * 0.15f;  // 15% au lieu de 2%
+    float amplitude = length * 0.15f;
     
     // P1 à 1/4 déplacé VERS LE HAUT
     Vec2f p1;
@@ -110,9 +110,10 @@ std::vector<Vec2f> UVTriangleIFS::getOrCreateEdgeIFS(float u1, float v1, float u
     for (size_t i = 1; i < points.size() - 1; ++i) {
         points[i].u = std::round(points[i].u * quantPrecision) / quantPrecision;
         points[i].v = std::round(points[i].v * quantPrecision) / quantPrecision;
+
+          points[i].u = std::max(0.0f, std::min(1.0f, points[i].u));
+    points[i].v = std::max(0.0f, std::min(1.0f, points[i].v));
     }
-    
-    // Les extrémités sont déjà forcées à fu1,fv1 et fu2,fv2 dans IFSEdge::generate()
     
     edgeIFSCache[key] = points;
     
@@ -138,11 +139,10 @@ void UVTriangleIFS::generateIFSTriangles(int ifsDepth) {
     std::cout << "Génération IFS pour " << triangles.size() 
               << " triangles (profondeur " << ifsDepth << ")..." << std::endl;
     
-    // Compter le nombre total d'arêtes (avant dédoublonnage)
     int totalEdgeRequests = 0;
     
     for (const auto& tri : triangles) {
-        totalEdgeRequests += 3;  // 3 arêtes par triangle
+        totalEdgeRequests += 3;
         
         std::vector<Vec2f> edge1 = getOrCreateEdgeIFS(tri.u1, tri.v1, tri.u2, tri.v2);
         std::vector<Vec2f> edge2 = getOrCreateEdgeIFS(tri.u2, tri.v2, tri.u3, tri.v3);
@@ -152,21 +152,19 @@ void UVTriangleIFS::generateIFSTriangles(int ifsDepth) {
         ifsTri.r = tri.r;
         ifsTri.g = tri.g;
         ifsTri.b = tri.b;
+
+        // FIX : centroïde des 3 sommets ORIGINAUX, pas de la moyenne du périmètre IFS
+        ifsTri.originalCentroid.u = (tri.u1 + tri.u2 + tri.u3) / 3.0f;
+        ifsTri.originalCentroid.v = (tri.v1 + tri.v2 + tri.v3) / 3.0f;
         
         ifsTri.boundary.clear();
         
-        // Assembler sans les derniers points (pour éviter doublons)
-        for (size_t i = 0; i < edge1.size() - 1; ++i) {
+        for (size_t i = 0; i < edge1.size() - 1; ++i)
             ifsTri.boundary.push_back(edge1[i]);
-        }
-        
-        for (size_t i = 0; i < edge2.size() - 1; ++i) {
+        for (size_t i = 0; i < edge2.size() - 1; ++i)
             ifsTri.boundary.push_back(edge2[i]);
-        }
-        
-        for (size_t i = 0; i < edge3.size() - 1; ++i) {
+        for (size_t i = 0; i < edge3.size() - 1; ++i)
             ifsTri.boundary.push_back(edge3[i]);
-        }
         
         ifsTriangles.push_back(ifsTri);
     }
@@ -205,11 +203,13 @@ void UVTriangleIFS::drawUVFilled() const {
         
         glColor3f(ifsTri.r, ifsTri.g, ifsTri.b);
         
-        // Triangle fan depuis le premier point
+        // FIX : fan depuis le centroïde ORIGINAL au lieu de boundary[0] (un coin)
         glBegin(GL_TRIANGLE_FAN);
+        glVertex2f(ifsTri.originalCentroid.u, ifsTri.originalCentroid.v);
         for (const auto& pt : ifsTri.boundary) {
             glVertex2f(pt.u, pt.v);
         }
+        glVertex2f(ifsTri.boundary[0].u, ifsTri.boundary[0].v);  // fermer le fan
         glEnd();
     }
     
@@ -311,15 +311,10 @@ void UVTriangleIFS::buildIFSMesh(HalfEdgeMesh* mesh, ParametricMapping* mapping)
             }
         }
         else {
-            float centerU = 0.0f;
-            float centerV = 0.0f;
-            for (const auto& p : ifsTri.boundary) {
-                centerU += p.u;
-                centerV += p.v;
-            }
-            centerU /= n;
-            centerV /= n;
-            Vec2f center = {centerU, centerV};
+            // FIX : centroïde ORIGINAL au lieu de la moyenne du périmètre IFS
+            // La moyenne du périmètre est biaisée vers les arêtes qui ont le plus
+            // de points → peut sortir du polygone pour des triangles fins.
+            Vec2f center = ifsTri.originalCentroid;
 
             for (size_t i = 0; i < n; ++i) {
                 addTri(center, ifsTri.boundary[i], ifsTri.boundary[(i + 1) % n]);

@@ -99,6 +99,7 @@ public:
     // Utilitaires
     void clear();
     void computeNormals(); 
+    void exportOBJ(const std::string& filename) const;
     
 private:
     std::vector<Vertex*> vertices;
